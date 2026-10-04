@@ -318,8 +318,23 @@ class GroundingClient:
             self._logger.info("Session closed: %s", name)
 
     async def close_all_sessions(self) -> None:
+        first_error = None
         for sid in list(self._sessions.keys()):
-            await self.close_session(sid)
+            try:
+                await self.close_session(sid)
+            except Exception as error:
+                if first_error is None:
+                    first_error = error
+        # Providers may initialize sessions before a tool is invoked, so those
+        # sessions need not appear in the client's session map yet.
+        for provider in self._registry.list().values():
+            try:
+                await provider.close_all_sessions()
+            except Exception as error:
+                if first_error is None:
+                    first_error = error
+        if first_error is not None:
+            raise first_error
             
     async def ensure_session(self, backend: BackendType, server: str | None = None) -> str:
         sid = backend.value if server is None else f"{backend.value}-{server}"
