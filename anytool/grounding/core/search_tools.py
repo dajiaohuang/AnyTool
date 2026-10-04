@@ -160,7 +160,7 @@ class ToolRanker:
     
     def _save_persistent_cache(self) -> None:
         """Save embeddings to disk cache."""
-        if not self._enable_cache_persistence or not self._structured_cache:
+        if not self._enable_cache_persistence:
             return
         
         cache_file = self._get_cache_file_path()
@@ -319,7 +319,10 @@ class ToolRanker:
         if tool_name not in self._structured_cache[backend][server]:
             return None
         
-        return self._structured_cache[backend][server][tool_name].get("embedding")
+        cached = self._structured_cache[backend][server][tool_name]
+        if cached.get("description") != (tool.description or ""):
+            return None
+        return cached.get("embedding")
     
     def _set_embedding(self, tool: BaseTool, embedding: np.ndarray) -> None:
         """Store embedding in structured cache."""
