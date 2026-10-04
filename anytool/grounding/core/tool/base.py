@@ -71,13 +71,7 @@ class BaseTool(ABC):
         return self.schema.description if hasattr(self, 'schema') and self.schema else self._description
 
     @classmethod
-    @lru_cache
-    def get_parameters_schema(cls) -> Dict[str, Any]:
-        """Auto-generate JSON-schema from _run() or _arun() signature.
-        
-        Returns empty dict for tools with no parameters.
-        Priority: prefer _arun if overridden, otherwise use _run.
-        """
+    def _get_parameters_callable(cls):
         # Priority: prefer _arun if it's overridden by subclass, else use _run
         # This allows async-first tools to define their signature via _arun
         sig_src = None
@@ -94,7 +88,13 @@ class BaseTool(ABC):
                 f"{cls.__name__} must implement _run() or _arun() to define its parameters schema"
             )
         
-        sig = inspect.signature(sig_src)
+        return sig_src
+
+    @classmethod
+    @lru_cache
+    def get_parameters_schema(cls) -> Dict[str, Any]:
+        """Auto-generate JSON-schema from the implementation signature."""
+        sig = inspect.signature(cls._get_parameters_callable())
         fields: dict[str, Any] = {}
         for name, p in sig.parameters.items():
             # Skip 'self' and **kwargs / *args

@@ -8,6 +8,12 @@ from .base import BaseTool
 
 
 class LocalTool(BaseTool):
+    @classmethod
+    def _get_parameters_callable(cls):
+        if cls._arun is LocalTool._arun and cls._run is not LocalTool._run:
+            return cls._run
+        return super()._get_parameters_callable()
+
     def _run(self, **kwargs):  
         raise NotImplementedError
     
