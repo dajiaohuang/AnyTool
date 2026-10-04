@@ -204,7 +204,7 @@ def build_pyautogui_command(action_type: str, parameters: Dict[str, Any]) -> str
     elif action_type == "SCROLL":
         dx = parameters.get("dx", 0)
         dy = parameters.get("dy", 0)
-        return f"pyautogui.scroll({dy})"
+        return f"pyautogui.hscroll({dx}); pyautogui.scroll({dy})" if dx else f"pyautogui.scroll({dy})"
     
     elif action_type == "TYPING":
         text = parameters.get("text", "")
