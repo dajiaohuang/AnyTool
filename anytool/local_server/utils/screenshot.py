@@ -160,11 +160,11 @@ class ScreenshotHelper:
         try:
             from PIL import ImageChops
             import math
-            import operator
-            from functools import reduce
             
-            img1 = Image.open(path1)
-            img2 = Image.open(path2)
+            with Image.open(path1) as image:
+                img1 = image.convert("RGB")
+            with Image.open(path2) as image:
+                img2 = image.convert("RGB")
             
             # Ensure same size
             if img1.size != img2.size:
@@ -176,16 +176,13 @@ class ScreenshotHelper:
             
             # Calculate statistics
             stat = diff.histogram()
-            sum_of_squares = reduce(
-                operator.add,
-                map(lambda h, i: h * (i ** 2), stat, range(len(stat)))
-            )
+            sum_of_squares = sum(h * ((i % 256) ** 2) for i, h in enumerate(stat))
             
             # Calculate RMS
-            rms = math.sqrt(sum_of_squares / float(img1.size[0] * img1.size[1]))
+            rms = math.sqrt(sum_of_squares / float(img1.size[0] * img1.size[1] * 3))
             
-            # Normalize to 0-1, RMS max value is approximately 441 (for RGB)
-            similarity = 1 - (rms / 441.0)
+            # Each color channel has a maximum intensity difference of 255.
+            similarity = 1 - (rms / 255.0)
             
             return max(0, min(1, similarity))
             
