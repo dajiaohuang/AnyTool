@@ -496,8 +496,10 @@ If the task cannot be completed, output: {"action_type": "FAIL", "reason": "expl
             
             try:
                 result = await self.connector.execute_python_command(command)
+                succeeded = bool(result) and result.get("status") == "success" and result.get("returncode", 0) == 0
                 return {
-                    "status": "success" if result else "error",
+                    "status": "success" if succeeded else "error",
+                    "error": "" if succeeded else ((result or {}).get("error") or (result or {}).get("output") or "Command execution failed"),
                     "action_type": action_type,
                     "command": command,
                     "result": result
