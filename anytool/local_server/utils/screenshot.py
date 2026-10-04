@@ -31,7 +31,7 @@ class ScreenshotHelper:
     def capture(self, output_path: str, with_cursor: bool = True) -> bool:
         try:
             # Ensure directory exists
-            os.makedirs(os.path.dirname(output_path), exist_ok=True)
+            os.makedirs(os.path.dirname(output_path) or ".", exist_ok=True)
             
             if with_cursor and self.adapter:
                 # Use platform-specific method to capture screenshot (with cursor)
@@ -69,7 +69,7 @@ class ScreenshotHelper:
             Whether successful
         """
         try:
-            os.makedirs(os.path.dirname(output_path), exist_ok=True)
+            os.makedirs(os.path.dirname(output_path) or ".", exist_ok=True)
             
             screenshot = pyautogui.screenshot(region=(x, y, width, height))
             screenshot.save(output_path)
