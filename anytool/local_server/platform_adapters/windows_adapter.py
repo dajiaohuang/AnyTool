@@ -1,6 +1,7 @@
 import os
 import ctypes
 import subprocess
+from contextlib import ExitStack
 from typing import Dict, Any, Optional, List
 from anytool.utils.logging import Logger
 from PIL import Image, ImageGrab
@@ -76,24 +77,31 @@ class WindowsAdapter:
         """
         try:
             hcursor = win32gui.GetCursorInfo()[1]
-            hdc = win32ui.CreateDCFromHandle(win32gui.GetDC(0))
-            hbmp = win32ui.CreateBitmap()
-            hbmp.CreateCompatibleBitmap(hdc, 36, 36)
-            hdc_compatible = hdc.CreateCompatibleDC()
-            hdc_compatible.SelectObject(hbmp)
-            hdc_compatible.DrawIcon((0, 0), hcursor)
-            
-            bmpinfo = hbmp.GetInfo()
-            bmpstr = hbmp.GetBitmapBits(True)
-            cursor = Image.frombuffer(
-                'RGB',
-                (bmpinfo['bmWidth'], bmpinfo['bmHeight']),
-                bmpstr, 'raw', 'BGRX', 0, 1
-            ).convert("RGBA")
-            
-            win32gui.DestroyIcon(hcursor)
-            win32gui.DeleteObject(hbmp.GetHandle())
-            hdc_compatible.DeleteDC()
+            with ExitStack() as resources:
+                icon_info = win32gui.GetIconInfo(hcursor)
+                hotspot = icon_info[1:3]
+                for bitmap_handle in icon_info[3:5]:
+                    if bitmap_handle:
+                        resources.callback(win32gui.DeleteObject, bitmap_handle)
+                screen_dc = win32gui.GetDC(0)
+                resources.callback(win32gui.ReleaseDC, 0, screen_dc)
+                hdc = win32ui.CreateDCFromHandle(screen_dc)
+                hbmp = win32ui.CreateBitmap()
+                hbmp.CreateCompatibleBitmap(hdc, 36, 36)
+                resources.callback(win32gui.DeleteObject, hbmp.GetHandle())
+                hdc_compatible = hdc.CreateCompatibleDC()
+                resources.callback(hdc_compatible.DeleteDC)
+                previous_bitmap = hdc_compatible.SelectObject(hbmp)
+                resources.callback(hdc_compatible.SelectObject, previous_bitmap)
+                hdc_compatible.DrawIcon((0, 0), hcursor)
+
+                bmpinfo = hbmp.GetInfo()
+                bmpstr = hbmp.GetBitmapBits(True)
+                cursor = Image.frombuffer(
+                    'RGB',
+                    (bmpinfo['bmWidth'], bmpinfo['bmHeight']),
+                    bmpstr, 'raw', 'BGRX', 0, 1
+                ).convert("RGBA")
             
             # Make black pixels transparent
             pixdata = cursor.load()
@@ -102,8 +110,6 @@ class WindowsAdapter:
                 for x in range(width):
                     if pixdata[x, y] == (0, 0, 0, 255):
                         pixdata[x, y] = (0, 0, 0, 0)
-            
-            hotspot = win32gui.GetIconInfo(hcursor)[1:3]
             
             return (cursor, hotspot)
             
