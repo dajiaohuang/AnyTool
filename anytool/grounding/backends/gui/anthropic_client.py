@@ -1,6 +1,6 @@
 import base64
 import os
-import time
+import asyncio
 from typing import Any, Dict, Optional, Tuple, List
 from anytool.utils.logging import Logger
 from PIL import Image
@@ -10,7 +10,7 @@ logger = Logger.get_logger(__name__)
 
 try:
     from anthropic import (
-        Anthropic,
+        AsyncAnthropic,
         AnthropicBedrock,
         AnthropicVertex,
         APIError,
@@ -141,7 +141,7 @@ class AnthropicGUIClient:
     def _create_client(self, api_key: Optional[str] = None):
         """Create Anthropic client (only supports anthropic provider)."""
         key = api_key or self.api_key
-        return Anthropic(api_key=key, max_retries=4)
+        return AsyncAnthropic(api_key=key, max_retries=4)
     
     def _resize_screenshot(self, screenshot_bytes: bytes) -> bytes:
         """
@@ -293,13 +293,14 @@ class AnthropicGUIClient:
         
         # Try API call with retry and backup
         client = self._create_client()
+        backup_client = None
         response = None
         
         try:
             # Retry loop with automatic image count reduction on 25MB error
             for attempt in range(API_RETRY_TIMES):
                 try:
-                    response = client.beta.messages.create(
+                    response = await client.beta.messages.create(
                         max_tokens=self.max_tokens,
                         messages=self.messages,
                         model=model_name,
@@ -333,7 +334,7 @@ class AnthropicGUIClient:
                         logger.info(f"Image count reduced from {current_count} to {new_count}")
                     
                     if attempt < API_RETRY_TIMES - 1:
-                        time.sleep(API_RETRY_INTERVAL)
+                        await asyncio.sleep(API_RETRY_INTERVAL)
                     else:
                         raise
         
@@ -345,7 +346,7 @@ class AnthropicGUIClient:
                 logger.warning("Retrying with backup API key...")
                 try:
                     backup_client = self._create_client(self.backup_api_key)
-                    response = backup_client.beta.messages.create(
+                    response = await backup_client.beta.messages.create(
                         max_tokens=self.max_tokens,
                         messages=self.messages,
                         model=model_name,
@@ -364,6 +365,10 @@ class AnthropicGUIClient:
         except Exception as e:
             logger.error(f"Unexpected error: {e}")
             return None, ["FAIL"]
+        finally:
+            await client.close()
+            if backup_client is not None:
+                await backup_client.close()
         
         if not response:
             return None, ["FAIL"]
