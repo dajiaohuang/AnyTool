@@ -160,7 +160,7 @@ class ToolRanker:
     
     def _save_persistent_cache(self) -> None:
         """Save embeddings to disk cache."""
-        if not self._enable_cache_persistence:
+        if not self._enable_cache_persistence or not self._structured_cache:
             return
         
         cache_file = self._get_cache_file_path()
