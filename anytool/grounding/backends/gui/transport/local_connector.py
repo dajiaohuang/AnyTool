@@ -302,7 +302,7 @@ class LocalGUIConnector(BaseConnector[Any]):
 
         result = await self.execute_python_command(command)
         if result:
-            succeeded = result.get("status") == "success" and result.get("returncode", 0) == 0
+            succeeded = result["status"] == "success" and result["returncode"] == 0
             return {
                 "status": "success" if succeeded else "error",
                 "error": "" if succeeded else (result.get("error") or result.get("output") or "Command execution failed"),
