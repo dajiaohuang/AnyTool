@@ -55,8 +55,6 @@ def _deep_sanitize(schema):
     """Remove display annotations without changing JSON Schema validation."""
     if isinstance(schema, bool):
         return schema
-    if not isinstance(schema, dict):
-        return {"type": "string"}
 
     for annotation in ("title", "examples", "nullable", "default"):
         schema.pop(annotation, None)
